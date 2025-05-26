@@ -67,9 +67,26 @@ app.post("/api/upload-recording", upload.single("recording"), (req, res) => {
       return res.status(400).json({ success: false, error: "No file uploaded" })
     }
 
-    const { roomCode, userEmail, duration } = req.body
+    const { roomCode, userEmail, duration, recordingType, participantCount } = req.body
 
-    console.log(`📹 Recording uploaded: ${req.file.filename} by ${userEmail} in room ${roomCode}`)
+    // Create metadata file
+    const metadata = {
+      filename: req.file.filename,
+      roomCode: roomCode,
+      userEmail: userEmail,
+      recordingType: recordingType || 'single',
+      participantCount: parseInt(participantCount) || 1,
+      duration: duration || "unknown",
+      fileSize: req.file.size,
+      uploadedAt: new Date().toISOString(),
+      path: `/uploads/recordings/${req.file.filename}`
+    }
+
+    // Save metadata
+    const metadataPath = path.join(uploadsDir, `${req.file.filename}.json`)
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2))
+
+    console.log(`📹 ${recordingType || 'single'} recording uploaded: ${req.file.filename} by ${userEmail} in room ${roomCode} (${participantCount} participants)`)
 
     res.json({
       success: true,
@@ -77,6 +94,9 @@ app.post("/api/upload-recording", upload.single("recording"), (req, res) => {
       path: `/uploads/recordings/${req.file.filename}`,
       size: req.file.size,
       duration: duration || "unknown",
+      recordingType: recordingType || 'single',
+      participantCount: participantCount || 1,
+      metadata: metadata
     })
   } catch (error) {
     console.error("❌ Error uploading recording:", error)
@@ -286,24 +306,30 @@ io.on("connection", (socket) => {
   })
 
   // Handle recording events
-  socket.on("recording-started", ({ roomCode }) => {
+  socket.on("recording-started", ({ roomCode, type = 'single' }) => {
     const user = socketToUser.get(socket.id)
     if (user) {
       socket.to(roomCode).emit("user-recording-started", {
         socketId: socket.id,
         userEmail: user.userEmail,
+        recordingType: type,
       })
+      
+      console.log(`📹 ${user.userEmail} started ${type} recording in room ${roomCode}`)
     }
   })
 
-  socket.on("recording-stopped", ({ roomCode, filename }) => {
+  socket.on("recording-stopped", ({ roomCode, filename, recordingType = 'single' }) => {
     const user = socketToUser.get(socket.id)
     if (user) {
       socket.to(roomCode).emit("user-recording-stopped", {
         socketId: socket.id,
         userEmail: user.userEmail,
         filename,
+        recordingType,
       })
+      
+      console.log(`📹 ${user.userEmail} stopped ${recordingType} recording: ${filename}`)
     }
   })
 

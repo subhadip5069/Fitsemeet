@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -815,11 +814,11 @@
             .participants-sidebar {
                 width: 380px;
             }
-            
+
             .participants-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .mobile-participants-grid {
                 grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             }
@@ -830,7 +829,7 @@
             .participants-sidebar {
                 width: 320px;
             }
-            
+
             .participants-grid {
                 grid-template-columns: 1fr;
             }
@@ -939,7 +938,9 @@
                 flex-shrink: 0;
             }
 
-            .sidebar-header {
+            .<previous_generation>```text
+
+            sidebar-header {
                 padding: 12px 16px;
                 min-height: 50px;
             }
@@ -1607,12 +1608,12 @@
         let currentChatMode = 'group';
         let unreadMessages = 0;
         let allParticipants = new Map();
-        
+
         // Camera rotation state
         let cameraRotation = 0;
         let isFlippedHorizontal = false;
         let isFlippedVertical = false;
-        
+
         // Mobile state
         let isMobileOverlayOpen = false;
         let touchStartY = 0;
@@ -1798,7 +1799,7 @@
 
             // Add to both desktop and mobile grids
             participantsGrid.appendChild(participantDiv);
-            
+
             // Clone for mobile
             const mobileParticipantDiv = participantDiv.cloneNode(true);
             mobileParticipantDiv.id = 'mobile-local-participant';
@@ -1913,7 +1914,8 @@
                 if (state === 'failed' || state === 'disconnected') {
                     console.log('🔄 ICE connection issues, restarting...');
                     setTimeout(() => {
-                        if (peerConnection.iceConnectionState === 'failed') {
+                        ```text
+if (peerConnection.iceConnectionState === 'failed') {
                             peerConnection.restartIce();
                         }
                     }, 1000);
@@ -2776,28 +2778,141 @@
             }
         }
 
-        // Camera rotation functions
+        // Camera switching and transformation functions
+        let currentFacingMode = 'user'; // 'user' for front camera, 'environment' for back camera
+        let availableCameras = [];
+
+        // Get available cameras
+        async function getAvailableCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                availableCameras = devices.filter(device => device.kind === 'videoinput');
+                console.log('📹 Available cameras:', availableCameras.length);
+                return availableCameras;
+            } catch (error) {
+                console.error('❌ Error getting cameras:', error);
+                return [];
+            }
+        }
+
+        // Switch between front and back camera
+        async function switchCamera() {
+            try {
+                if (availableCameras.length < 2) {
+                    showNotification('Only one camera available', 'warning');
+                    return;
+                }
+
+                // Toggle facing mode
+                currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+
+                // Stop current video track
+                if (localStream) {
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        videoTrack.stop();
+                    }
+                }
+
+                // Get new stream with switched camera
+                const newConstraints = {
+                    video: {
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1280, max: 1920, min: 640 },
+                        height: { ideal: 720, max: 1080, min: 480 },
+                        frameRate: { ideal: 30, max: 30, min: 15 }
+                    },
+                    audio: true
+                };
+
+                try {
+                    const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
+
+                    // Replace video track in local stream
+                    const newVideoTrack = newStream.getVideoTracks()[0];
+                    const audioTrack = localStream.getAudioTracks()[0];
+
+                    // Create new stream with new video and existing audio
+                    localStream = new MediaStream();
+                    if (newVideoTrack) localStream.addTrack(newVideoTrack);
+                    if (audioTrack) localStream.addTrack(audioTrack);
+
+                    // Update all peer connections with new video track
+                    for (const [socketId, peerConnection] of peerConnections) {
+                        const sender = peerConnection.getSenders().find(s => 
+                            s.track && s.track.kind === 'video'
+                        );
+                        if (sender && newVideoTrack) {
+                            await sender.replaceTrack(newVideoTrack);
+                        }
+                    }
+
+                    // Update local video elements
+                    updateLocalVideoElements();
+
+                    showNotification(`Switched to ${currentFacingMode === 'user' ? 'front' : 'back'} camera`);
+
+                } catch (streamError) {
+                    console.error('❌ Error switching camera:', streamError);
+                    showNotification('Failed to switch camera', 'error');
+
+                    // Fallback: revert to previous facing mode
+                    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+                }
+
+            } catch (error) {
+                console.error('❌ Error in camera switch:', error);
+                showNotification('Camera switch failed', 'error');
+            }
+        }
+
+        // Update local video elements with new stream
+        function updateLocalVideoElements() {
+            // Update desktop local video
+            const localVideo = document.querySelector('#local-participant video');
+            if (localVideo && localStream) {
+                localVideo.srcObject = localStream;
+                applyCameraTransform(localVideo);
+            }
+
+            // Update mobile local video
+            const mobileLocalVideo = document.querySelector('#mobile-local-participant video');
+            if (mobileLocalVideo && localStream) {
+                mobileLocalVideo.srcObject = localStream;
+                applyCameraTransform(mobileLocalVideo);
+            }
+
+            // Update main video if showing local
+            if (mainVideoSocketId === null) {
+                const mainVideo = mainVideoContainer.querySelector('video');
+                if (mainVideo && localStream) {
+                    mainVideo.srcObject = localStream;
+                    applyCameraTransform(mainVideo);
+                }
+            }
+        }
+
         function applyCameraTransform(videoElement) {
             let transform = '';
-            
+
             if (cameraRotation !== 0) {
                 transform += `rotate(${cameraRotation}deg) `;
             }
-            
+
             if (isFlippedHorizontal) {
                 transform += 'scaleX(-1) ';
             }
-            
+
             if (isFlippedVertical) {
                 transform += 'scaleY(-1) ';
             }
-            
+
             videoElement.style.transform = transform.trim();
         }
 
         function rotateCamera(degrees) {
             cameraRotation = (cameraRotation + degrees) % 360;
-            
+
             // Apply to local video
             const localVideo = document.querySelector('#local-participant video');
             if (localVideo) {
@@ -2809,7 +2924,7 @@
             if (mobileLocalVideo) {
                 applyCameraTransform(mobileLocalVideo);
             }
-            
+
             // Apply to main video if showing local
             if (mainVideoSocketId === null) {
                 const mainVideo = mainVideoContainer.querySelector('video');
@@ -2817,9 +2932,11 @@
                     applyCameraTransform(mainVideo);
                 }
             }
-            
+
             showNotification(`Camera rotated ${degrees > 0 ? 'right' : 'left'}`);
         }
+
+```text
 
         function flipCamera(direction) {
             if (direction === 'horizontal') {
@@ -2829,7 +2946,7 @@
                 isFlippedVertical = !isFlippedVertical;
                 showNotification('Camera flipped vertically');
             }
-            
+
             // Apply to local video
             const localVideo = document.querySelector('#local-participant video');
             if (localVideo) {
@@ -2841,7 +2958,7 @@
             if (mobileLocalVideo) {
                 applyCameraTransform(mobileLocalVideo);
             }
-            
+
             // Apply to main video if showing local
             if (mainVideoSocketId === null) {
                 const mainVideo = mainVideoContainer.querySelector('video');
@@ -2856,7 +2973,7 @@
             isMobileOverlayOpen = true;
             const overlay = document.getElementById('mobileOverlay');
             overlay.classList.add('show');
-            
+
             // Hide swipe indicator after first use
             hideSwipeIndicatorAfterUse();
         }
@@ -2875,10 +2992,10 @@
 
         function handleTouchMove(e) {
             if (!touchStartY) return;
-            
+
             const touchY = e.touches[0].clientY;
             const diffY = touchStartY - touchY;
-            
+
             // Prevent default scrolling behavior for upward swipes
             if (diffY > 0 && touchY > window.innerHeight * 0.7) {
                 e.preventDefault();
@@ -2887,18 +3004,18 @@
 
         function handleTouchEnd(e) {
             if (!touchStartY) return;
-            
+
             const touchEndY = e.changedTouches[0].clientY;
             const diffY = touchStartY - touchEndY;
             const diffTime = Date.now() - touchStartTime;
-            
+
             // Swipe up detection (minimum 50px upward, max 300ms duration)
             if (diffY > 50 && diffTime < 300 && touchStartY > window.innerHeight * 0.7) {
                 if (!isMobileOverlayOpen) {
                     showMobileOverlay();
                 }
             }
-            
+
             touchStartY = 0;
             touchStartTime = 0;
         }
