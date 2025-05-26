@@ -950,21 +950,49 @@
             try {
                 console.log('🎥 Requesting media access...');
                 
-                const constraints = {
-                    video: {
-                        width: { ideal: 1280, max: 1920 },
-                        height: { ideal: 720, max: 1080 },
-                        frameRate: { ideal: 30, max: 60 }
-                    },
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
-                        sampleRate: 44100
-                    }
+                // Check if mediaDevices is supported
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Media devices not supported in this browser');
+                }
+                
+                // Request permissions first with basic constraints
+                const basicConstraints = {
+                    video: true,
+                    audio: true
                 };
                 
-                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                try {
+                    // Try with basic constraints first
+                    localStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+                    console.log('✅ Basic media access granted');
+                    
+                    // Stop the basic stream and get HD stream
+                    localStream.getTracks().forEach(track => track.stop());
+                    
+                    // Now try with HD constraints
+                    const hdConstraints = {
+                        video: {
+                            width: { ideal: 1280, max: 1920, min: 640 },
+                            height: { ideal: 720, max: 1080, min: 480 },
+                            frameRate: { ideal: 30, max: 60, min: 15 },
+                            facingMode: 'user'
+                        },
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            sampleRate: { ideal: 44100, min: 22050 }
+                        }
+                    };
+                    
+                    localStream = await navigator.mediaDevices.getUserMedia(hdConstraints);
+                    console.log('✅ HD media access granted');
+                    
+                } catch (hdError) {
+                    console.warn('⚠️ HD constraints failed, using basic stream:', hdError);
+                    // Fall back to basic constraints
+                    localStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+                }
                 
                 // Always keep video and audio enabled by default
                 const videoTrack = localStream.getVideoTracks()[0];
@@ -973,11 +1001,17 @@
                 if (videoTrack) {
                     videoTrack.enabled = true;
                     isVideoOff = false;
+                    console.log('📹 Video track enabled:', videoTrack.label);
+                } else {
+                    console.warn('⚠️ No video track available');
                 }
                 
                 if (audioTrack) {
                     audioTrack.enabled = true;
                     isAudioMuted = false;
+                    console.log('🎤 Audio track enabled:', audioTrack.label);
+                } else {
+                    console.warn('⚠️ No audio track available');
                 }
                 
                 console.log('✅ Media access granted - Video and Audio ON by default');
@@ -998,17 +1032,48 @@
         async function handleMediaError(error) {
             console.log('🔄 Attempting fallback media access...');
             
+            let errorMessage = 'Media access failed';
+            
+            if (error.name === 'NotAllowedError') {
+                errorMessage = 'Camera/microphone access denied. Please allow permissions and refresh the page.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = 'No camera/microphone found. Please connect devices and refresh.';
+            } else if (error.name === 'NotSupportedError') {
+                errorMessage = 'Camera/microphone not supported in this browser.';
+            } else if (error.name === 'OverconstrainedError') {
+                errorMessage = 'Camera/microphone constraints not supported.';
+            }
+            
+            console.error('Media error details:', error.name, error.message);
+            
             try {
-                // Try audio only
+                // Try audio only first
+                console.log('🎤 Trying audio-only access...');
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 console.log('🎤 Audio-only access granted');
+                showNotification('Camera access failed, but microphone is working. You can join with audio only.');
                 addLocalParticipant();
                 joinRoom();
             } catch (audioError) {
                 console.error('❌ Audio access also failed:', audioError);
-                showNotification('Camera and microphone access denied. You can still join the meeting.', 'warning');
-                addLocalParticipant();
-                joinRoom();
+                
+                try {
+                    // Try video only
+                    console.log('📹 Trying video-only access...');
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    console.log('📹 Video-only access granted');
+                    showNotification('Microphone access failed, but camera is working. You can join with video only.');
+                    addLocalParticipant();
+                    joinRoom();
+                } catch (videoError) {
+                    console.error('❌ Video access also failed:', videoError);
+                    showNotification(errorMessage + ' You can still join the meeting without media.');
+                    
+                    // Join without any media
+                    localStream = null;
+                    addLocalParticipant();
+                    joinRoom();
+                }
             }
         }
         
@@ -1018,13 +1083,16 @@
             participantDiv.className = 'participant-item local';
             participantDiv.id = 'local-participant';
             
-            if (localStream && localStream.getVideoTracks().length > 0) {
+            const hasVideo = localStream && localStream.getVideoTracks().length > 0 && localStream.getVideoTracks()[0].enabled;
+            const hasAudio = localStream && localStream.getAudioTracks().length > 0;
+            
+            if (hasVideo) {
                 participantDiv.innerHTML = `
                     <video class="participant-video" autoplay muted playsinline></video>
                     <div class="participant-info">
                         <div class="participant-name">You (${userEmail})</div>
                         <div class="participant-status">
-                            <div class="status-icon audio-off" id="localAudioStatus" style="display: none;">🔇</div>
+                            <div class="status-icon audio-off" id="localAudioStatus" style="display: ${hasAudio ? 'none' : 'flex'};">🔇</div>
                             <div class="status-icon video-off" id="localVideoStatus" style="display: none;">📹</div>
                         </div>
                     </div>
@@ -1032,6 +1100,12 @@
                 
                 const video = participantDiv.querySelector('video');
                 video.srcObject = localStream;
+                
+                // Handle video loading
+                video.onloadedmetadata = () => {
+                    console.log('📹 Local video loaded');
+                    video.play().catch(e => console.warn('Local video autoplay failed:', e));
+                };
             } else {
                 participantDiv.innerHTML = `
                     <div class="no-video-participant">
@@ -1041,8 +1115,8 @@
                     <div class="participant-info">
                         <div class="participant-name">You (${userEmail})</div>
                         <div class="participant-status">
-                            <div class="status-icon audio-off" id="localAudioStatus" style="display: none;">🔇</div>
-                            <div class="status-icon video-off" id="localVideoStatus">📹</div>
+                            <div class="status-icon audio-off" id="localAudioStatus" style="display: ${hasAudio ? 'none' : 'flex'};">🔇</div>
+                            <div class="status-icon video-off" id="localVideoStatus" style="display: flex;">📹</div>
                         </div>
                     </div>
                 `;
@@ -1050,12 +1124,16 @@
             
             // Add click handler to switch to main view
             participantDiv.addEventListener('click', () => {
-                if (localStream) {
+                if (localStream && hasVideo) {
                     showLocalInMainVideo();
+                } else {
+                    showNotification('No camera available to display');
                 }
             });
             
             participantsList.appendChild(participantDiv);
+            
+            console.log('👤 Local participant added - Video:', hasVideo, 'Audio:', hasAudio);
         }
         
         // Show local video in main area
@@ -2113,9 +2191,32 @@
             if (localVideoStatus) localVideoStatus.style.display = 'none';
         }
         
+        // Check permissions and guide user
+        async function checkPermissions() {
+            if (!navigator.permissions) {
+                console.log('🔍 Permissions API not supported, proceeding with media request');
+                return;
+            }
+            
+            try {
+                const cameraPermission = await navigator.permissions.query({ name: 'camera' });
+                const micPermission = await navigator.permissions.query({ name: 'microphone' });
+                
+                console.log('📹 Camera permission:', cameraPermission.state);
+                console.log('🎤 Microphone permission:', micPermission.state);
+                
+                if (cameraPermission.state === 'denied' || micPermission.state === 'denied') {
+                    showNotification('Please allow camera and microphone access for the best experience. Check your browser settings if needed.');
+                }
+            } catch (error) {
+                console.log('🔍 Could not check permissions:', error);
+            }
+        }
+        
         // Call this after media initialization
         console.log('🚀 Starting Enhanced Google Meet Clone...');
         setupChatTabs();
+        checkPermissions();
         initializeMedia();
         initializeControlButtons();
     </script>
