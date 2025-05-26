@@ -1,9 +1,12 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FITSTE - Meeting</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -15,7 +18,7 @@
             font-family: 'Google Sans', Roboto, Arial, sans-serif;
             background: #202124;
             color: white;
-            overflow: hidden;
+            overflow-x: hidden;
             height: 100vh;
         }
 
@@ -110,7 +113,7 @@
             font-weight: 600;
         }
 
-        /* Participants Sidebar */
+        /* Enhanced Participants Sidebar with Bootstrap */
         .participants-sidebar {
             width: 320px;
             background: #2d2e30;
@@ -122,22 +125,13 @@
         }
 
         .sidebar-header {
-                padding: 16px 16px 12px;
-                min-height: 60px;
-                position: relative;
-            }
-
-            .sidebar-header::before {
-                content: '';
-                position: absolute;
-                top: 8px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 40px;
-                height: 4px;
-                background: rgba(255, 255, 255, 0.3);
-                border-radius: 2px;
-            }
+            padding: 16px;
+            min-height: 60px;
+            border-bottom: 1px solid #3c4043;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
         .sidebar-title {
             font-weight: 600;
@@ -155,23 +149,31 @@
             box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
         }
 
+        /* Scrollable participants list with Bootstrap grid */
         .participants-list {
             flex: 1;
             overflow-y: auto;
             padding: 12px;
             scrollbar-width: thin;
             scrollbar-color: #5f6368 #2d2e30;
+            max-height: calc(100vh - 200px);
+        }
+
+        .participants-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
         }
 
         .participant-item {
             background: #3c4043;
             border-radius: 12px;
-            margin-bottom: 12px;
             overflow: hidden;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            min-height: 140px;
         }
 
         .participant-item:hover {
@@ -190,6 +192,7 @@
             height: 140px;
             object-fit: cover;
             background: #202124;
+            display: block;
         }
 
         .participant-info {
@@ -209,6 +212,10 @@
             font-weight: 600;
             color: white;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 150px;
         }
 
         .participant-status {
@@ -761,6 +768,14 @@
             padding: 16px;
         }
 
+        /* Mobile participants grid with Bootstrap */
+        .mobile-participants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            padding: 16px;
+        }
+
         .overlay-trigger {
             position: absolute;
             bottom: 0;
@@ -793,131 +808,36 @@
             60% { transform: translateX(-50%) translateY(-5px); }
         }
 
-        /* Enhanced Responsiveness for All Display Sizes */
+        /* Enhanced Responsiveness with Bootstrap Breakpoints */
 
-        /* 4K and Ultra-wide Displays (2560px+) */
-        @media (min-width: 2560px) {
+        /* Large Desktop (1200px+) */
+        @media (min-width: 1200px) {
             .participants-sidebar {
-                width: 400px;
+                width: 380px;
             }
-
-            .main-video-area {
-                padding: 32px;
+            
+            .participants-grid {
+                grid-template-columns: 1fr;
             }
-
-            .controls {
-                padding: 24px 32px;
-                gap: 24px;
-            }
-
-            .control-btn {
-                width: 64px;
-                height: 64px;
-                font-size: 26px;
-            }
-
-            .meeting-info {
-                font-size: 18px;
-                gap: 24px;
-            }
-
-            .chat-panel {
-                width: 420px;
+            
+            .mobile-participants-grid {
+                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             }
         }
 
-        /* Large Desktop (1920px - 2559px) */
-        @media (min-width: 1920px) and (max-width: 2559px) {
+        /* Medium Desktop (992px - 1199px) */
+        @media (min-width: 992px) and (max-width: 1199px) {
             .participants-sidebar {
-                width: 360px;
-            }
-
-            .main-video-area {
-                padding: 24px;
-            }
-
-            .controls {
-                padding: 22px 28px;
-                gap: 22px;
-            }
-
-            .control-btn {
-                width: 60px;
-                height: 60px;
-                font-size: 24px;
-            }
-
-            .meeting-info {
-                font-size: 16px;
-                gap: 22px;
-            }
-        }
-
-        /* Standard Desktop (1440px - 1919px) */
-        @media (min-width: 1440px) and (max-width: 1919px) {
-            .participants-sidebar {
-                width: 340px;
-            }
-
-            .controls {
-                padding: 20px 24px;
-                gap: 20px;
-            }
-
-            .control-btn {
-                width: 58px;
-                height: 58px;
-                font-size: 23px;
-            }
-        }
-
-        /* Medium Desktop (1200px - 1439px) */
-        @media (min-width: 1200px) and (max-width: 1439px) {
-            .participants-sidebar {
-                width: 300px;
-            }
-
-            .controls {
-                padding: 18px 20px;
-                gap: 18px;
-            }
-
-            .control-btn {
-                width: 54px;
-                height: 54px;
-                font-size: 21px;
-            }
-        }
-
-        /* Small Desktop/Large Tablet (1024px - 1199px) */
-        @media (min-width: 1024px) and (max-width: 1199px) {
-            .participants-sidebar {
-                width: 280px;
-            }
-
-            .controls {
-                padding: 16px 18px;
-                gap: 16px;
-            }
-
-            .control-btn {
-                width: 52px;
-                height: 52px;
-                font-size: 20px;
-            }
-
-            .meeting-info {
-                font-size: 13px;
-                gap: 16px;
-            }
-
-            .chat-panel {
                 width: 320px;
             }
+            
+            .participants-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
-        /* Tablet Portrait (768px - 1023px) */
-        @media (min-width: 768px) and (max-width: 1023px) {
+        /* Tablet (768px - 991px) */
+        @media (min-width: 768px) and (max-width: 991px) {
             .meeting-container {
                 flex-direction: column;
             }
@@ -929,31 +849,35 @@
 
             .participants-sidebar {
                 width: 100%;
-                height: 160px;
+                height: 200px;
                 border-left: none;
                 border-top: 1px solid #3c4043;
                 order: 2;
             }
 
             .participants-list {
+                height: 150px;
+                max-height: 150px;
+            }
+
+            .participants-grid {
                 display: flex;
                 overflow-x: auto;
                 overflow-y: hidden;
-                padding: 8px 12px;
-                gap: 8px;
-                height: 100%;
+                gap: 12px;
+                grid-template-columns: none;
+                padding-bottom: 8px;
             }
 
             .participant-item {
-                min-width: 120px;
-                margin-bottom: 0;
+                min-width: 160px;
                 flex-shrink: 0;
                 height: 120px;
             }
 
             .participant-video,
             .no-video-participant {
-                height: 90px;
+                height: 120px;
             }
 
             .main-video-area {
@@ -965,7 +889,6 @@
             .controls {
                 padding: 16px 12px;
                 gap: 14px;
-                background: rgba(32, 33, 36, 0.92);
             }
 
             .control-btn {
@@ -979,19 +902,20 @@
             }
         }
 
-        /* Mobile Landscape (481px - 767px) */
-        @media (min-width: 481px) and (max-width: 767px) {
-            .camera-controls {
-                opacity: 1;
-                top: 40px;
-                right: 10px;
+        /* Mobile (576px - 767px) */
+        @media (min-width: 576px) and (max-width: 767px) {
+            .mobile-overlay {
+                display: flex;
             }
 
-            .watermark {
-                bottom: 80px;
-                left: 10px;
-                font-size: 11px;
+            .overlay-trigger {
+                display: block;
             }
+
+            .swipe-indicator {
+                display: block;
+            }
+
             .meeting-container {
                 flex-direction: column;
                 height: 100vh;
@@ -1001,136 +925,116 @@
                 flex-direction: column;
                 flex: 1;
                 min-height: 0;
+                height: calc(100vh - 140px - 80px);
             }
 
             .participants-sidebar {
                 width: 100%;
                 height: 140px;
+                min-height: 140px;
+                max-height: 140px;
                 border-left: none;
                 border-top: 1px solid #3c4043;
                 order: 2;
                 flex-shrink: 0;
             }
 
+            .sidebar-header {
+                padding: 12px 16px;
+                min-height: 50px;
+            }
+
             .participants-list {
+                height: 90px;
+                max-height: 90px;
+                padding: 8px 12px;
+            }
+
+            .participants-grid {
                 display: flex;
                 overflow-x: auto;
                 overflow-y: hidden;
-                padding: 6px 8px;
-                gap: 6px;
-                height: 100%;
+                gap: 8px;
+                grid-template-columns: none;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+
+            .participants-grid::-webkit-scrollbar {
+                display: none;
             }
 
             .participant-item {
-                min-width: 100px;
-                margin-bottom: 0;
+                min-width: 120px;
+                width: 120px;
+                height: 80px;
                 flex-shrink: 0;
-                height: 110px;
+                border-radius: 8px;
             }
 
             .participant-video,
             .no-video-participant {
-                height: 80px;
+                height: 60px;
+                border-radius: 8px 8px 0 0;
             }
 
             .participant-info {
-                padding: 6px 8px;
+                padding: 4px 8px;
+                height: 20px;
+                min-height: 20px;
             }
 
             .participant-name {
-                font-size: 11px;
+                font-size: 10px;
+                max-width: 80px;
             }
 
             .main-video-area {
                 order: 1;
                 padding: 8px;
                 flex: 1;
-                min-height: 220px;
+                min-height: 200px;
             }
 
-            .main-participant-name {
-                top: 12px;
-                left: 12px;
-                font-size: 14px;
-                padding: 8px 12px;
+            .controls {
+                padding: 12px 8px;
+                gap: 8px;
+                min-height: 80px;
+                max-height: 80px;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 1000;
+            }
+
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 16px;
+                margin: 0 2px;
+            }
+
+            .meeting-info {
+                font-size: 10px;
+                gap: 8px;
+                justify-content: center;
+                flex-wrap: wrap;
             }
 
             .chat-panel {
                 width: 100%;
-                height: 100vh;
             }
 
-            .controls {
-                padding: 14px 8px;
-                gap: 10px;
-                background: rgba(32, 33, 36, 0.94);
-                backdrop-filter: blur(20px);
-                -webkit-backdrop-filter: blur(20px);
-                border-top: 2px solid rgba(60, 64, 67, 0.8);
-                position: sticky;
-                bottom: 0;
-                z-index: 100;
-                min-height: 76px;
-                display: flex !important;
-                justify-content: center;
-                align-items: center;
-                flex-wrap: wrap;
-                box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.4);
+            .mobile-participants-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 12px;
+                padding: 12px;
             }
-
-            .control-btn {
-                width: 48px !important;
-                height: 48px !important;
-                font-size: 17px !important;
-                display: flex !important;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                margin: 2px;
-            }
-
-            .meeting-info {
-                width: 100%;
-                text-align: center;
-                font-size: 12px;
-                margin-bottom: 10px;
-                order: -1;
-                background: rgba(60, 64, 67, 0.8);
-                padding: 6px 12px;
-                border-radius: 8px;
-                backdrop-filter: blur(10px);
-            }
-
-            .sidebar-header {
-                padding: 16px 16px 12px;
-                min-height: 60px;
-                position: relative;
-            }
-
-            .sidebar-header::before {
-                content: '';
-                position: absolute;
-                top: 8px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 40px;
-                height: 4px;
-                background: rgba(255, 255, 255, 0.3);
-                border-radius: 2px;
-            }
-
-        .sidebar-title {
-            font-size: 14px;
         }
 
-        .participants-count {
-            font-size: 11px;
-            padding: 4px 8px;
-        }
-    }
-
-        /* Mobile Portrait (320px - 480px) */
-        @media (max-width: 480px) {
+        /* Small Mobile (below 576px) */
+        @media (max-width: 575px) {
             body {
                 overflow: hidden;
                 position: fixed;
@@ -1151,30 +1055,10 @@
                 display: block;
             }
 
-            .camera-controls {
-                top: 50px;
-                right: 12px;
-                opacity: 1;
-            }
-
-            .camera-rotate-btn {
-                width: 32px;
-                height: 32px;
-                font-size: 14px;
-            }
-
-            .watermark {
-                bottom: 100px;
-                left: 12px;
-                font-size: 12px;
-                padding: 6px 12px;
-            }
-
             .meeting-container {
                 flex-direction: column;
                 height: 100vh;
                 overflow: hidden;
-                position: relative;
             }
 
             .main-content {
@@ -1183,7 +1067,6 @@
                 flex-direction: column;
                 height: 100vh;
                 overflow: hidden;
-                padding-bottom: 0;
             }
 
             .video-section {
@@ -1191,8 +1074,7 @@
                 display: flex;
                 flex-direction: column;
                 min-height: 0;
-                height: calc(100vh - 120px - 80px); /* Total height minus participants minus controls */
-                overflow: hidden;
+                height: calc(100vh - 120px - 80px);
             }
 
             .main-video-area {
@@ -1200,14 +1082,6 @@
                 padding: 8px;
                 min-height: 0;
                 height: 100%;
-                overflow: hidden;
-            }
-
-            .main-video-container {
-                width: 100%;
-                height: 100%;
-                min-height: 200px;
-                position: relative;
             }
 
             .participants-sidebar {
@@ -1220,8 +1094,6 @@
                 order: 2;
                 flex-shrink: 0;
                 overflow: hidden;
-                position: relative;
-                z-index: 10;
             }
 
             .sidebar-header {
@@ -1239,54 +1111,54 @@
             }
 
             .participants-list {
+                height: 80px;
+                max-height: 80px;
+                padding: 4px 8px;
+            }
+
+            .participants-grid {
                 display: flex;
                 overflow-x: auto;
                 overflow-y: hidden;
-                padding: 4px 8px;
                 gap: 6px;
-                height: 80px;
-                max-height: 80px;
-                flex-direction: row;
+                grid-template-columns: none;
                 scrollbar-width: none;
                 -ms-overflow-style: none;
             }
 
-            .participants-list::-webkit-scrollbar {
+            .participants-grid::-webkit-scrollbar {
                 display: none;
             }
 
             .participant-item {
-                min-width: 75px;
-                width: 75px;
+                min-width: 80px;
+                width: 80px;
                 height: 70px;
-                margin-bottom: 0;
                 flex-shrink: 0;
-                border-radius: 8px;
+                border-radius: 6px;
             }
 
             .participant-video,
             .no-video-participant {
                 height: 50px;
-                border-radius: 8px 8px 0 0;
+                border-radius: 6px 6px 0 0;
             }
 
             .participant-info {
-                padding: 4px 6px;
+                padding: 2px 6px;
                 height: 20px;
                 min-height: 20px;
             }
 
             .participant-name {
                 font-size: 9px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+                max-width: 60px;
             }
 
             .participant-avatar {
-                width: 24px;
-                height: 24px;
-                font-size: 10px;
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
                 margin-bottom: 4px;
             }
 
@@ -1297,37 +1169,26 @@
             }
 
             .controls {
-                padding: 8px 6px;
-                gap: 6px;
+                padding: 6px 4px;
+                gap: 4px;
                 min-height: 80px;
                 max-height: 80px;
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: rgba(32, 33, 36, 0.98);
-                backdrop-filter: blur(30px);
-                -webkit-backdrop-filter: blur(30px);
-                border-top: 2px solid rgba(60, 64, 67, 0.9);
                 z-index: 1000;
-                box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.6);
-                display: flex;
                 justify-content: center;
                 align-items: center;
                 flex-wrap: nowrap;
-                overflow: hidden;
             }
 
             .control-btn {
                 width: 42px;
                 height: 42px;
                 font-size: 14px;
-                margin: 0 2px;
+                margin: 0 1px;
                 flex-shrink: 0;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
             }
 
             .meeting-info {
@@ -1335,12 +1196,11 @@
                 top: -30px;
                 left: 50%;
                 transform: translateX(-50%);
-                font-size: 9px;
+                font-size: 8px;
                 padding: 4px 8px;
                 background: rgba(60, 64, 67, 0.9);
                 border-radius: 12px;
                 white-space: nowrap;
-                backdrop-filter: blur(10px);
                 z-index: 1001;
             }
 
@@ -1350,15 +1210,6 @@
                 font-size: 11px;
                 padding: 6px 10px;
                 border-radius: 12px;
-                backdrop-filter: blur(15px);
-            }
-
-            .fullscreen-btn {
-                top: 12px;
-                right: 12px;
-                padding: 6px;
-                font-size: 14px;
-                border-radius: 6px;
             }
 
             .waiting-message h2 {
@@ -1371,145 +1222,29 @@
                 margin-bottom: 6px;
             }
 
-            .chat-panel {
-                width: 100vw;
-                height: 100vh;
-                top: 0;
-                right: 0;
-                z-index: 2000;
+            .mobile-participants-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+                padding: 8px;
             }
 
-            .notification {
-                top: 16px;
-                max-width: calc(100vw - 32px);
+            .camera-controls {
+                top: 50px;
+                right: 12px;
+                opacity: 1;
+            }
+
+            .camera-rotate-btn {
+                width: 28px;
+                height: 28px;
                 font-size: 12px;
-                padding: 12px 16px;
             }
 
-            .recording-indicator {
-                top: 16px;
-                left: 16px;
-                font-size: 11px;
-                padding: 8px 12px;
-            }
-
-            .connection-status {
-                top: 16px;
-                right: 60px;
+            .watermark {
+                bottom: 100px;
+                left: 12px;
                 font-size: 10px;
                 padding: 4px 8px;
-            }
-
-            /* Fix video container positioning */
-            .main-video-container video {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                border-radius: 8px;
-            }
-
-            /* Ensure proper stacking */
-            .video-section {
-                position: relative;
-                z-index: 1;
-            }
-
-            .participants-sidebar {
-                position: relative;
-                z-index: 2;
-            }
-
-            .controls {
-                position: fixed;
-                z-index: 1000;
-            }
-        }
-
-        /* Very Small Devices (below 320px) */
-        @media (max-width: 319px) {
-            .meeting-container {
-                height: 100vh;
-                overflow: hidden;
-            }
-
-            .main-video-area {
-                padding: 6px;
-                min-height: 160px;
-            }
-
-            .participants-sidebar {
-                height: 100px;
-                min-height: 100px;
-                max-height: 100px;
-            }
-
-            .sidebar-header {
-                padding: 6px 10px;
-                min-height: 32px;
-            }
-
-            .participants-list {
-                height: 68px;
-                max-height: 68px;
-                padding: 2px 6px;
-                gap: 4px;
-            }
-
-            .participant-item {
-                min-width: 65px;
-                width: 65px;
-                height: 60px;
-            }
-
-            .participant-video,
-            .no-video-participant {
-                height: 42px;
-            }
-
-            .participant-info {
-                height: 18px;
-                padding: 2px 4px;
-            }
-
-            .participant-name {
-                font-size: 8px;
-            }
-
-            .control-btn {
-                width: 38px;
-                height: 38px;
-                font-size: 12px;
-                margin: 0 1px;
-            }
-
-            .controls {
-                padding: 6px 4px;
-                gap: 4px;
-                min-height: 70px;
-                max-height: 70px;
-            }
-
-            .meeting-info {
-                font-size: 8px;
-                padding: 3px 6px;
-                top: -28px;
-            }
-
-            .waiting-message h2 {
-                font-size: 14px;
-            }
-
-            .waiting-message p {
-                font-size: 10px;
-            }
-
-            .main-participant-name {
-                font-size: 10px;
-                padding: 4px 8px;
-            }
-
-            .video-section {
-                height: calc(100vh - 100px - 70px);
             }
         }
 
@@ -1518,13 +1253,11 @@
             .meeting-container {
                 flex-direction: row;
                 height: 100vh;
-                overflow: hidden;
             }
 
             .main-content {
                 flex: 1;
                 height: 100vh;
-                padding-bottom: 0;
             }
 
             .video-section {
@@ -1534,7 +1267,7 @@
             }
 
             .participants-sidebar {
-                width: 180px;
+                width: 200px;
                 height: 100vh;
                 border-left: 1px solid #3c4043;
                 border-top: none;
@@ -1542,31 +1275,28 @@
                 flex-shrink: 0;
             }
 
-            .sidebar-header {
-                padding: 8px 12px;
-                min-height: 40px;
+            .participants-list {
+                height: calc(100vh - 110px);
+                max-height: calc(100vh - 110px);
             }
 
-            .participants-list {
-                flex-direction: column;
+            .participants-grid {
+                display: grid;
+                grid-template-columns: 1fr;
                 overflow-y: auto;
                 overflow-x: hidden;
-                height: calc(100vh - 100px);
-                max-height: calc(100vh - 100px);
-                padding: 8px;
-                gap: 6px;
+                gap: 8px;
             }
 
             .participant-item {
                 width: 100%;
                 min-width: auto;
-                margin-bottom: 0;
-                height: 80px;
+                height: 100px;
             }
 
             .participant-video,
             .no-video-participant {
-                height: 60px;
+                height: 80px;
             }
 
             .main-video-area {
@@ -1580,146 +1310,41 @@
                 padding: 6px 8px;
                 min-height: 60px;
                 max-height: 60px;
-                background: rgba(32, 33, 36, 0.95);
-                backdrop-filter: blur(20px);
                 gap: 8px;
             }
 
             .control-btn {
-                width: 42px;
-                height: 42px;
+                width: 40px;
+                height: 40px;
                 font-size: 14px;
             }
-
-            .meeting-info {
-                font-size: 9px;
-                top: -25px;
-                padding: 3px 8px;
-            }
-        }
-
-        /* Foldable and Flexible Displays */
-        @media screen and (min-width: 1000px) and (max-width: 1200px) and (min-height: 600px) {
-            .meeting-container {
-                flex-direction: column;
-            }
-
-            .video-section {
-                flex-direction: row;
-                height: 70vh;
-            }
-
-            .participants-sidebar {
-                width: 100%;
-                height: 30vh;
-                border-left: none;
-                border-top: 1px solid #3c4043;
-            }
-
-            .participants-list {
-                display: flex;
-                overflow-x: auto;
-                overflow-y: hidden;
-                gap: 10px;
-                padding: 10px;
-            }
-
-            .participant-item {
-                min-width: 140px;
-                flex-shrink: 0;
-                margin-bottom: 0;
-            }
-        }
-
-        /* Ultra-wide Aspect Ratios */
-        @media screen and (min-aspect-ratio: 21/9) {
-            .participants-sidebar {
-                width: 300px;
-                min-width: 300px;
-            }
-
-            .main-video-area {
-                padding: 24px;
-            }
-
-            .controls {
-                max-width: 900px;
-                margin: 0 auto;
-                padding: 20px 28px;
-                background: rgba(32, 33, 36, 0.8);
-                backdrop-filter: blur(25px);
-                border-radius: 16px 16px 0 0;
-            }
-        }
-
-        /* Improved Hover Effects */
-        .control-btn:hover {
-            transform: scale(1.08);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-        }
-
-        .control-btn:active {
-            transform: scale(0.92);
-        }
-
-        .participant-item:hover {
-            background: #4a4b4d;
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Better Loading States */
-        .loading-indicator {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid rgba(60, 64, 67, 0.3);
-            border-radius: 50%;
-            border-top-color: #1a73e8;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .status-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.85);
-            color: white;
-            padding: 16px 24px;
-            border-radius: 12px;
-            font-size: 15px;
-            text-align: center;
-            backdrop-filter: blur(15px);
-            z-index: 10;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         /* Enhanced Scrollbars */
         .participants-list::-webkit-scrollbar,
-        .chat-messages::-webkit-scrollbar {
+        .chat-messages::-webkit-scrollbar,
+        .mobile-overlay-content::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
 
         .participants-list::-webkit-scrollbar-track,
-        .chat-messages::-webkit-scrollbar-track {
+        .chat-messages::-webkit-scrollbar-track,
+        .mobile-overlay-content::-webkit-scrollbar-track {
             background: rgba(45, 46, 48, 0.5);
             border-radius: 4px;
         }
 
         .participants-list::-webkit-scrollbar-thumb,
-        .chat-messages::-webkit-scrollbar-thumb {
+        .chat-messages::-webkit-scrollbar-thumb,
+        .mobile-overlay-content::-webkit-scrollbar-thumb {
             background: rgba(95, 99, 104, 0.8);
             border-radius: 4px;
         }
 
         .participants-list::-webkit-scrollbar-thumb:hover,
-        .chat-messages::-webkit-scrollbar-thumb:hover {
+        .chat-messages::-webkit-scrollbar-thumb:hover,
+        .mobile-overlay-content::-webkit-scrollbar-thumb:hover {
             background: #8ab4f8;
         }
 
@@ -1754,6 +1379,37 @@
         .participant-item:focus {
             outline: 2px solid #1a73e8;
             outline-offset: 2px;
+        }
+
+        /* Loading States */
+        .loading-indicator {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(60, 64, 67, 0.3);
+            border-radius: 50%;
+            border-top-color: #1a73e8;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 15px;
+            text-align: center;
+            backdrop-filter: blur(15px);
+            z-index: 10;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
     </style>
 </head>
@@ -1792,7 +1448,9 @@
                         <div class="participants-count" id="participantsCount">1</div>
                     </div>
                     <div class="participants-list" id="participantsList">
-                        <!-- Participants will be added here dynamically -->
+                        <div class="participants-grid" id="participantsGrid">
+                            <!-- Participants will be added here dynamically -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1841,7 +1499,9 @@
                 <button class="chat-close" id="overlayClose" aria-label="Close overlay">✕</button>
             </div>
             <div class="mobile-overlay-content" id="mobileParticipantsList">
-                <!-- Mobile participants will be added here -->
+                <div class="mobile-participants-grid" id="mobileParticipantsGrid">
+                    <!-- Mobile participants will be added here -->
+                </div>
             </div>
         </div>
 
@@ -1878,6 +1538,8 @@
 
     <div class="notification" id="notification" role="alert" aria-live="polite"></div>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         // Get URL parameters
@@ -1905,7 +1567,8 @@
 
         // DOM elements
         const mainVideoContainer = document.getElementById('mainVideoContainer');
-        const participantsList = document.getElementById('participantsList');
+        const participantsGrid = document.getElementById('participantsGrid');
+        const mobileParticipantsGrid = document.getElementById('mobileParticipantsGrid');
         const chatPanel = document.getElementById('chatPanel');
         const chatMessages = document.getElementById('chatMessages');
         const chatInput = document.getElementById('chatInput');
@@ -2133,7 +1796,13 @@
                 }
             });
 
-            participantsList.appendChild(participantDiv);
+            // Add to both desktop and mobile grids
+            participantsGrid.appendChild(participantDiv);
+            
+            // Clone for mobile
+            const mobileParticipantDiv = participantDiv.cloneNode(true);
+            mobileParticipantDiv.id = 'mobile-local-participant';
+            mobileParticipantsGrid.appendChild(mobileParticipantDiv);
 
             console.log('👤 Local participant added - Video:', hasVideo, 'Audio:', hasAudio);
         }
@@ -2264,12 +1933,23 @@
                 const existingParticipant = remoteParticipants.get(socketId);
                 existingParticipant.stream = stream;
 
+                // Update desktop video
                 const existingElement = document.getElementById(`participant-${socketId}`);
                 if (existingElement) {
                     const video = existingElement.querySelector('video');
                     if (video) {
                         video.srcObject = stream;
-                        console.log('📹 Updated existing video element');
+                        console.log('📹 Updated existing desktop video element');
+                    }
+                }
+
+                // Update mobile video
+                const existingMobileElement = document.getElementById(`mobile-participant-${socketId}`);
+                if (existingMobileElement) {
+                    const mobileVideo = existingMobileElement.querySelector('video');
+                    if (mobileVideo) {
+                        mobileVideo.srcObject = stream;
+                        console.log('📹 Updated existing mobile video element');
                     }
                 }
                 return;
@@ -2283,59 +1963,87 @@
             allParticipants.set(socketId, { userEmail, socketId });
             updatePrivateChatOptions();
 
+            const hasVideo = stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].enabled;
+
+            // Create desktop participant element
             const participantDiv = document.createElement('div');
             participantDiv.className = 'participant-item';
             participantDiv.id = `participant-${socketId}`;
 
-            const hasVideo = stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].enabled;
+            // Create mobile participant element
+            const mobileParticipantDiv = document.createElement('div');
+            mobileParticipantDiv.className = 'participant-item';
+            mobileParticipantDiv.id = `mobile-participant-${socketId}`;
+
+            const participantHTML = hasVideo ? `
+                <video class="participant-video" autoplay playsinline muted></video>
+                <div class="participant-info">
+                    <div class="participant-name">${userEmail}</div>
+                    <div class="participant-status">
+                        <div class="status-icon audio-off" style="display: none;">🔇</div>
+                        <div class="status-icon video-off" style="display: none;">📹</div>
+                        <div class="status-icon screen-sharing" style="display: none;">🖥️</div>
+                    </div>
+                </div>
+            ` : `
+                <div class="no-video-participant">
+                    <div class="participant-avatar">${userEmail.charAt(0).toUpperCase()}</div>
+                    <div class="participant-name">${userEmail}</div>
+                </div>
+                <div class="participant-info">
+                    <div class="participant-name">${userEmail}</div>
+                    <div class="participant-status">
+                        <div class="status-icon audio-off" style="display: none;">🔇</div>
+                        <div class="status-icon video-off" style="display: flex;">📹</div>
+                        <div class="status-icon screen-sharing" style="display: none;">🖥️</div>
+                    </div>
+                </div>
+            `;
+
+            participantDiv.innerHTML = participantHTML;
+            mobileParticipantDiv.innerHTML = participantHTML;
 
             if (hasVideo) {
-                participantDiv.innerHTML = `
-                    <video class="participant-video" autoplay playsinline muted></video>
-                    <div class="participant-info">
-                        <div class="participant-name">${userEmail}</div>
-                        <div class="participant-status">
-                            <div class="status-icon audio-off" style="display: none;">🔇</div>
-                            <div class="status-icon video-off" style="display: none;">📹</div>
-                            <div class="status-icon screen-sharing" style="display: none;">🖥️</div>
-                        </div>
-                    </div>
-                `;
-
+                // Setup desktop video
                 const video = participantDiv.querySelector('video');
                 video.srcObject = stream;
 
                 video.onloadedmetadata = () => {
-                    console.log('📹 Video metadata loaded for:', userEmail);
-                    video.play().catch(e => console.error('Video play error:', e));
+                    console.log('📹 Desktop video metadata loaded for:', userEmail);
+                    video.play().catch(e => console.error('Desktop video play error:', e));
                 };
 
                 video.onerror = (e) => {
-                    console.error('📹 Video error for:', userEmail, e);
+                    console.error('📹 Desktop video error for:', userEmail, e);
                 };
 
-            } else {
-                participantDiv.innerHTML = `
-                    <div class="no-video-participant">
-                        <div class="participant-avatar">${userEmail.charAt(0).toUpperCase()}</div>
-                        <div class="participant-name">${userEmail}</div>
-                    </div>
-                    <div class="participant-info">
-                        <div class="participant-name">${userEmail}</div>
-                        <div class="participant-status">
-                            <div class="status-icon audio-off" style="display: none;">🔇</div>
-                            <div class="status-icon video-off" style="display: flex;">📹</div>
-                            <div class="status-icon screen-sharing" style="display: none;">🖥️</div>
-                        </div>
-                    </div>
-                `;
+                // Setup mobile video
+                const mobileVideo = mobileParticipantDiv.querySelector('video');
+                mobileVideo.srcObject = stream;
+
+                mobileVideo.onloadedmetadata = () => {
+                    console.log('📹 Mobile video metadata loaded for:', userEmail);
+                    mobileVideo.play().catch(e => console.error('Mobile video play error:', e));
+                };
+
+                mobileVideo.onerror = (e) => {
+                    console.error('📹 Mobile video error for:', userEmail, e);
+                };
             }
 
+            // Add click handlers
             participantDiv.addEventListener('click', () => {
                 showInMainVideo(socketId, stream, userEmail);
             });
 
-            participantsList.appendChild(participantDiv);
+            mobileParticipantDiv.addEventListener('click', () => {
+                showInMainVideo(socketId, stream, userEmail);
+                hideMobileOverlay();
+            });
+
+            // Add to grids
+            participantsGrid.appendChild(participantDiv);
+            mobileParticipantsGrid.appendChild(mobileParticipantDiv);
 
             if (!mainVideoSocketId && hasVideo) {
                 showInMainVideo(socketId, stream, userEmail);
@@ -2387,9 +2095,16 @@
             allParticipants.delete(socketId);
             updatePrivateChatOptions();
 
+            // Remove desktop element
             const participantElement = document.getElementById(`participant-${socketId}`);
             if (participantElement) {
                 participantElement.remove();
+            }
+
+            // Remove mobile element
+            const mobileParticipantElement = document.getElementById(`mobile-participant-${socketId}`);
+            if (mobileParticipantElement) {
+                mobileParticipantElement.remove();
             }
 
             if (mainVideoSocketId === socketId) {
@@ -2616,11 +2331,21 @@
 
         // Update participant media state indicators
         function updateParticipantMediaState(socketId, type, enabled) {
+            // Update desktop version
             const participantElement = document.getElementById(`participant-${socketId}`);
             if (participantElement) {
                 const statusIcon = participantElement.querySelector(`.status-icon.${type}-off`);
                 if (statusIcon) {
                     statusIcon.style.display = enabled ? 'none' : 'flex';
+                }
+            }
+
+            // Update mobile version
+            const mobileParticipantElement = document.getElementById(`mobile-participant-${socketId}`);
+            if (mobileParticipantElement) {
+                const mobileStatusIcon = mobileParticipantElement.querySelector(`.status-icon.${type}-off`);
+                if (mobileStatusIcon) {
+                    mobileStatusIcon.style.display = enabled ? 'none' : 'flex';
                 }
             }
         }
@@ -2864,27 +2589,16 @@
                         localVideoStatus.style.display = isVideoOff ? 'flex' : 'none';
                     }
 
+                    // Update desktop local participant
                     const localParticipant = document.getElementById('local-participant');
                     if (localParticipant) {
-                        if (isVideoOff) {
-                            const video = localParticipant.querySelector('video');
-                            if (video) video.style.display = 'none';
+                        updateParticipantVideoDisplay(localParticipant, isVideoOff);
+                    }
 
-                            let noVideo = localParticipant.querySelector('.no-video-participant');
-                            if (!noVideo) {
-                                noVideo = document.createElement('div');
-                                noVideo.className = 'no-video-participant';
-                                noVideo.innerHTML = `
-                                    <div class="participant-avatar">${userEmail.charAt(0).toUpperCase()}</div>
-                                `;
-                                localParticipant.insertBefore(noVideo, localParticipant.firstChild);
-                            }
-                        } else {
-                            const video = localParticipant.querySelector('video');
-                            const noVideo = localParticipant.querySelector('.no-video-participant');
-                            if (video) video.style.display = 'block';
-                            if (noVideo) noVideo.remove();
-                        }
+                    // Update mobile local participant
+                    const mobileLocalParticipant = document.getElementById('mobile-local-participant');
+                    if (mobileLocalParticipant) {
+                        updateParticipantVideoDisplay(mobileLocalParticipant, isVideoOff);
                     }
 
                     socket.emit('media-state-change', {
@@ -2895,6 +2609,28 @@
 
                     showNotification(isVideoOff ? 'Camera turned off' : 'Camera turned on');
                 }
+            }
+        }
+
+        function updateParticipantVideoDisplay(participantElement, isVideoOff) {
+            if (isVideoOff) {
+                const video = participantElement.querySelector('video');
+                if (video) video.style.display = 'none';
+
+                let noVideo = participantElement.querySelector('.no-video-participant');
+                if (!noVideo) {
+                    noVideo = document.createElement('div');
+                    noVideo.className = 'no-video-participant';
+                    noVideo.innerHTML = `
+                        <div class="participant-avatar">${userEmail.charAt(0).toUpperCase()}</div>
+                    `;
+                    participantElement.insertBefore(noVideo, participantElement.firstChild);
+                }
+            } else {
+                const video = participantElement.querySelector('video');
+                const noVideo = participantElement.querySelector('.no-video-participant');
+                if (video) video.style.display = 'block';
+                if (noVideo) noVideo.remove();
             }
         }
 
@@ -2926,6 +2662,11 @@
                     const localVideo = document.querySelector('#local-participant video');
                     if (localVideo) {
                         localVideo.srcObject = screenStream;
+                    }
+
+                    const mobileLocalVideo = document.querySelector('#mobile-local-participant video');
+                    if (mobileLocalVideo) {
+                        mobileLocalVideo.srcObject = screenStream;
                     }
 
                     isScreenSharing = true;
@@ -2970,6 +2711,11 @@
                 const localVideo = document.querySelector('#local-participant video');
                 if (localVideo) {
                     localVideo.srcObject = localStream;
+                }
+
+                const mobileLocalVideo = document.querySelector('#mobile-local-participant video');
+                if (mobileLocalVideo) {
+                    mobileLocalVideo.srcObject = localStream;
                 }
             }
 
@@ -3057,6 +2803,12 @@
             if (localVideo) {
                 applyCameraTransform(localVideo);
             }
+
+            // Apply to mobile local video
+            const mobileLocalVideo = document.querySelector('#mobile-local-participant video');
+            if (mobileLocalVideo) {
+                applyCameraTransform(mobileLocalVideo);
+            }
             
             // Apply to main video if showing local
             if (mainVideoSocketId === null) {
@@ -3083,6 +2835,12 @@
             if (localVideo) {
                 applyCameraTransform(localVideo);
             }
+
+            // Apply to mobile local video
+            const mobileLocalVideo = document.querySelector('#mobile-local-participant video');
+            if (mobileLocalVideo) {
+                applyCameraTransform(mobileLocalVideo);
+            }
             
             // Apply to main video if showing local
             if (mainVideoSocketId === null) {
@@ -3101,18 +2859,6 @@
             
             // Hide swipe indicator after first use
             hideSwipeIndicatorAfterUse();
-            
-            // Clone participants to mobile overlay
-            const mobileList = document.getElementById('mobileParticipantsList');
-            mobileList.innerHTML = '';
-            
-            const participants = participantsList.cloneNode(true);
-            participants.id = 'mobileParticipantsClone';
-            participants.style.display = 'flex';
-            participants.style.flexDirection = 'column';
-            participants.style.gap = '12px';
-            
-            mobileList.appendChild(participants);
         }
 
         function hideMobileOverlay() {
@@ -3269,7 +3015,7 @@
             if (localVideoStatus) localVideoStatus.style.display = 'none';
 
             // Hide swipe indicator after 10 seconds on mobile
-            if (window.innerWidth <= 480) {
+            if (window.innerWidth <= 575) {
                 setTimeout(() => {
                     const swipeIndicator = document.getElementById('swipeIndicator');
                     if (swipeIndicator) {
@@ -3309,7 +3055,7 @@
             }
         }
 
-        console.log('🚀 Starting Enhanced Google Meet Clone...');
+        console.log('🚀 Starting Enhanced Google Meet Clone with Bootstrap...');
         setupChatTabs();
         checkPermissions();
         initializeMedia();
