@@ -14,8 +14,6 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 const server = createServer(app)
-
-// Enhanced Socket.IO configuration
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -25,16 +23,7 @@ const io = new Server(server, {
   transports: ["websocket", "polling"],
   pingTimeout: 60000,
   pingInterval: 25000,
-  upgradeTimeout: 30000,
-  maxHttpBufferSize: 1e8,
-  allowEIO3: true,
-  // Enhanced reconnection settings
-  connectTimeout: 30000,
-  allowUpgrades: true,
-  perMessageDeflate: {
-    threshold: 1024
-  }
-});
+})
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "uploads", "recordings")
@@ -135,103 +124,76 @@ app.get("/join/:email/:code", validateJoinRequest, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "meeting.html"))
 })
 
-// Store socket to user mapping with last activity timestamp
-const socketToUser = new Map();
-const userToSocket = new Map();
-const userLastActivity = new Map();
+// Store socket to user mapping
+const socketToUser = new Map()
+const userToSocket = new Map()
 
-// Socket.IO connection handling
+// Socket.io connection handling
 io.on("connection", (socket) => {
-  console.log("🔌 User connected:", socket.id);
-  
-  // Track user activity
-  function updateUserActivity(userEmail) {
-    if (userEmail) {
-      userLastActivity.set(userEmail, Date.now());
-    }
-  }
+  console.log("🔌 User connected:", socket.id)
 
-  // Handle joining room with enhanced error handling and state management
+  // Handle joining room
   socket.on("join-room", ({ roomCode, userEmail }) => {
     try {
-      console.log(`👤 ${userEmail} attempting to join room ${roomCode}`);
-      
-      // Clean up any existing session
-      const existingSocketId = userToSocket.get(userEmail);
-      if (existingSocketId && existingSocketId !== socket.id) {
-        const existingSocket = io.sockets.sockets.get(existingSocketId);
-        if (existingSocket) {
-          console.log(`🔄 Cleaning up existing session for ${userEmail}`);
-          existingSocket.disconnect(true);
-        }
-        socketToUser.delete(existingSocketId);
-        userToSocket.delete(userEmail);
-      }
+      console.log(`👤 ${userEmail} attempting to join room ${roomCode}`)
 
-      socket.join(roomCode);
-      
-      // Store user mapping with timestamp
-      socketToUser.set(socket.id, { userEmail, roomCode });
-      userToSocket.set(userEmail, socket.id);
-      updateUserActivity(userEmail);
+      socket.join(roomCode)
+
+      // Store user mapping
+      socketToUser.set(socket.id, { userEmail, roomCode })
+      userToSocket.set(userEmail, socket.id)
 
       // Get or create room
-      let room = roomUtils.getRoom(roomCode);
+      let room = roomUtils.getRoom(roomCode)
       if (!room) {
-        room = roomUtils.createRoom(roomCode);
+        room = roomUtils.createRoom(roomCode)
       }
 
       // Add participant to room
-      room.addParticipant(socket.id, userEmail);
+      room.addParticipant(socket.id, userEmail)
 
-      // Get current participants
+      // Get all participants in the room except the current user
       const roomParticipants = Array.from(room.participants)
         .filter((participantId) => participantId !== socket.id)
         .map((participantId) => {
-          const participant = participants.get(participantId);
+          const participant = participants.get(participantId)
           return {
             socketId: participantId,
             userEmail: participant?.userEmail || "Unknown",
           }
-        });
+        })
 
-      // Send participants list with delay to ensure proper initialization
+      // Send current participants to the new user AFTER a delay
       setTimeout(() => {
-        socket.emit("room-participants", roomParticipants);
-      }, 1000);
+        socket.emit("room-participants", roomParticipants)
+      }, 1000)
 
-      // Notify others
+      // Notify others in the room about the new user AFTER a delay
       setTimeout(() => {
         socket.to(roomCode).emit("user-joined", {
           socketId: socket.id,
           userEmail,
-        });
-      }, 1500);
+        })
+      }, 1500)
 
-      // Update room participants count
+      // Send participants count update to everyone
       io.to(roomCode).emit("participants-update", {
         count: room.participants.size,
         participants: Array.from(room.participants).map((id) => {
-          const participant = participants.get(id);
+          const participant = participants.get(id)
           return {
             socketId: id,
             userEmail: participant?.userEmail || "Unknown",
           }
         }),
-      });
+      })
 
-      console.log(`✅ ${userEmail} successfully joined room ${roomCode}`);
+      console.log(`✅ ${userEmail} successfully joined room ${roomCode}`)
     } catch (error) {
-      console.error("❌ Error joining room:", error);
-      socket.emit("error", { message: error.message });
+      console.error("❌ Error joining room:", error)
+      socket.emit("error", { message: error.message })
     }
-  });
-
-  // Handle ping to keep connection alive
-  socket.on("ping", ({ userEmail }) => {
-    updateUserActivity(userEmail);
-    socket.emit("pong");
-  });
+  })
 
   // Handle WebRTC offer
   socket.on("offer", ({ offer, to }) => {
@@ -371,7 +333,7 @@ io.on("connection", (socket) => {
     }
   })
 
-  // Enhanced disconnect handling
+  // Handle disconnection
   socket.on("disconnect", (reason) => {
     console.log("🔌 User disconnected:", socket.id, "Reason:", reason)
 
@@ -381,40 +343,32 @@ io.on("connection", (socket) => {
       const room = roomUtils.getRoom(roomCode)
 
       if (room) {
-        // Don't remove participant immediately in case of temporary disconnection
-        setTimeout(() => {
-          // Check if user has reconnected with a new socket
-          const currentSocketId = userToSocket.get(userEmail)
-          if (currentSocketId === socket.id) {
-            const remainingCount = room.removeParticipant(socket.id)
+        const remainingCount = room.removeParticipant(socket.id)
 
-            // Notify others in the room
-            socket.to(roomCode).emit("user-left", {
-              socketId: socket.id,
-              userEmail,
-            })
+        // Notify others in the room
+        socket.to(roomCode).emit("user-left", {
+          socketId: socket.id,
+          userEmail,
+        })
 
-            // Update participants count
-            io.to(roomCode).emit("participants-update", {
-              count: remainingCount,
-              participants: Array.from(room.participants).map((id) => {
-                const participant = participants.get(id)
-                return {
-                  socketId: id,
-                  userEmail: participant?.userEmail || "Unknown",
-                }
-              }),
-            })
+        // Send participants count update
+        io.to(roomCode).emit("participants-update", {
+          count: remainingCount,
+          participants: Array.from(room.participants).map((id) => {
+            const participant = participants.get(id)
+            return {
+              socketId: id,
+              userEmail: participant?.userEmail || "Unknown",
+            }
+          }),
+        })
 
-            console.log(`👋 ${userEmail} left room ${roomCode}`)
-            
-            // Clean up mappings
-            socketToUser.delete(socket.id)
-            userToSocket.delete(userEmail)
-            userLastActivity.delete(userEmail)
-          }
-        }, 5000); // Wait 5 seconds before removing participant
+        console.log(`👋 ${userEmail} left room ${roomCode}`)
       }
+
+      // Clean up mappings
+      socketToUser.delete(socket.id)
+      userToSocket.delete(userEmail)
     }
   })
 
