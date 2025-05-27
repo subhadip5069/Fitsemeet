@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -814,11 +815,11 @@
             .participants-sidebar {
                 width: 380px;
             }
-
+            
             .participants-grid {
                 grid-template-columns: 1fr;
             }
-
+            
             .mobile-participants-grid {
                 grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             }
@@ -829,7 +830,7 @@
             .participants-sidebar {
                 width: 320px;
             }
-
+            
             .participants-grid {
                 grid-template-columns: 1fr;
             }
@@ -938,9 +939,7 @@
                 flex-shrink: 0;
             }
 
-            .<previous_generation>```text
-
-            sidebar-header {
+            .sidebar-header {
                 padding: 12px 16px;
                 min-height: 50px;
             }
@@ -1543,6 +1542,87 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // Audio context and processing nodes
+        let audioContext;
+        let sourceNode;
+        let gainNode;
+        let analyserNode;
+
+        // Audio processing setup
+        async function setupAudioProcessing(stream) {
+            try {
+                // Create audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create nodes
+                sourceNode = audioContext.createMediaStreamSource(stream);
+                gainNode = audioContext.createGain();
+                analyserNode = audioContext.createAnalyser();
+
+                // Connect nodes
+                sourceNode.connect(gainNode);
+                gainNode.connect(analyserNode);
+                gainNode.connect(audioContext.destination);
+
+                // Set initial gain
+                gainNode.gain.value = 1.0;
+
+                // Configure analyser
+                analyserNode.fftSize = 2048;
+                analyserNode.smoothingTimeConstant = 0.8;
+
+                console.log('Audio processing chain initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('Error setting up audio processing:', error);
+                return false;
+            }
+        }
+
+        // Audio control functions
+        function setAudioGain(value) {
+            if (gainNode) {
+                gainNode.gain.value = Math.max(0, Math.min(2, value)); // Limit gain between 0 and 2
+            }
+        }
+
+        function getAudioLevel() {
+            if (analyserNode) {
+                const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
+                analyserNode.getByteFrequencyData(dataArray);
+                return Math.max(...dataArray) / 255; // Normalize to 0-1
+            }
+            return 0;
+        }
+
+        // Audio troubleshooting
+        function checkAudioDevices() {
+            return navigator.mediaDevices.enumerateDevices()
+                .then(devices => {
+                    const audioDevices = devices.filter(device => device.kind === 'audioinput');
+                    console.log('Available audio devices:', audioDevices);
+                    return audioDevices.length > 0;
+                })
+                .catch(error => {
+                    console.error('Error checking audio devices:', error);
+                    return false;
+                });
+        }
+
+        // Auto gain control
+        function enableAutoGainControl(stream) {
+            const audioTrack = stream.getAudioTracks()[0];
+            if (audioTrack) {
+                const constraints = {
+                    autoGainControl: true,
+                    echoCancellation: true,
+                    noiseSuppression: true
+                };
+                audioTrack.applyConstraints(constraints)
+                    .then(() => console.log('Auto gain control enabled'))
+                    .catch(error => console.error('Error enabling auto gain control:', error));
+            }
+        }
         // Get URL parameters
         const urlPath = window.location.pathname;
         const pathParts = urlPath.split('/');
@@ -1608,12 +1688,12 @@
         let currentChatMode = 'group';
         let unreadMessages = 0;
         let allParticipants = new Map();
-
+        
         // Camera rotation state
         let cameraRotation = 0;
         let isFlippedHorizontal = false;
         let isFlippedVertical = false;
-
+        
         // Mobile state
         let isMobileOverlayOpen = false;
         let touchStartY = 0;
@@ -1759,8 +1839,8 @@
                     <div class="participant-info">
                         <div class="participant-name">You (${userEmail})</div>
                         <div class="participant-status">
-                            <div class="status-icon audio-on" id="localAudioStatus" style="display: ${hasAudio ? 'none' : 'flex'};">🔇</div>
-                            <div class="status-icon video-on" id="localVideoStatus" style="display: none;">📹</div>
+                            <div class="status-icon audio-off" id="localAudioStatus" style="display: ${hasAudio ? 'none' : 'flex'};">🔇</div>
+                            <div class="status-icon video-off" id="localVideoStatus" style="display: none;">📹</div>
                         </div>
                     </div>
                 `;
@@ -1799,7 +1879,7 @@
 
             // Add to both desktop and mobile grids
             participantsGrid.appendChild(participantDiv);
-
+            
             // Clone for mobile
             const mobileParticipantDiv = participantDiv.cloneNode(true);
             mobileParticipantDiv.id = 'mobile-local-participant';
@@ -1914,8 +1994,7 @@
                 if (state === 'failed' || state === 'disconnected') {
                     console.log('🔄 ICE connection issues, restarting...');
                     setTimeout(() => {
-                        ```text
-if (peerConnection.iceConnectionState === 'failed') {
+                        if (peerConnection.iceConnectionState === 'failed') {
                             peerConnection.restartIce();
                         }
                     }, 1000);
@@ -1925,6 +2004,294 @@ if (peerConnection.iceConnectionState === 'failed') {
             peerConnections.set(socketId, peerConnection);
             return peerConnection;
         }
+        // ... existing code ...
+        // SDP Utils for handling media sections
+        const SDPUtils = {
+            getMediaSections(sdp) {
+                const sections = sdp.split('\nm=');
+                return sections.map((section, index) => {
+                    return index > 0 ? 'm=' + section : section;
+                });
+            },
+
+            getMid(section) {
+                const midMatch = section.match(/\na=mid:(.*)/);
+                return midMatch ? midMatch[1] : null;
+            },
+
+            reorderSDP(sdp, order) {
+                const sections = this.getMediaSections(sdp);
+                const header = sections[0];
+                const media = sections.slice(1);
+                
+                // Create ordered media sections based on the provided order
+                const orderedMedia = order.map(mid => {
+                    return media.find(section => this.getMid(section) === mid);
+                }).filter(Boolean);
+                
+                return [header, ...orderedMedia].join('\n');
+            }
+        };
+
+        // Enhanced peer connection creation with consistent track ordering
+        function createPeerConnection(socketId, participantEmail = 'Participant') {
+            console.log('🤝 Creating peer connection for:', participantEmail);
+
+            const peerConnection = new RTCPeerConnection(configuration);
+
+            // Add transceivers in a consistent order
+            peerConnection.addTransceiver('audio', {
+                direction: 'sendrecv',
+                streams: localStream ? [localStream] : []
+            });
+            peerConnection.addTransceiver('video', {
+                direction: 'sendrecv',
+                streams: localStream ? [localStream] : []
+            });
+
+            // Add local tracks if available
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    console.log('📤 Adding local track:', track.kind, 'to peer:', participantEmail);
+                    // Use existing transceivers instead of creating new ones
+                    const transceiver = peerConnection.getTransceivers().find(t => 
+                        t.sender.track === null && t.receiver.track.kind === track.kind
+                    );
+                    if (transceiver) {
+                        transceiver.sender.replaceTrack(track);
+                    }
+                });
+            }
+
+            peerConnection.ontrack = (event) => {
+                console.log('📥 Received remote track:', event.track.kind, 'from:', participantEmail);
+                const [remoteStream] = event.streams;
+
+                if (remoteStream) {
+                    // Set audio output device if available
+                    if (typeof event.track.applyConstraints === 'function') {
+                        event.track.applyConstraints({
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }).catch(e => console.warn('Could not apply constraints:', e));
+                    }
+
+                    console.log('✅ Remote stream received, adding participant:', participantEmail);
+                    addRemoteParticipant(socketId, remoteStream, participantEmail);
+                }
+            };
+
+            // Enhanced connection state handling
+            peerConnection.onconnectionstatechange = () => {
+                const state = peerConnection.connectionState;
+                console.log(`🔗 Connection state with ${participantEmail}:`, state);
+
+                switch (state) {
+                    case 'connected':
+                        showNotification(`Connected to ${participantEmail}`);
+                        // Optimize after connection
+                        peerConnection.getReceivers().forEach(receiver => {
+                            if (receiver.track.kind === 'video') {
+                                receiver.track.contentHint = 'motion';
+                            }
+                        });
+                        break;
+                    case 'disconnected':
+                        showNotification(`Disconnected from ${participantEmail}`, 'warning');
+                        attemptReconnection(peerConnection, socketId, participantEmail);
+                        break;
+                    case 'failed':
+                        console.log('🔄 Connection failed, attempting recovery...');
+                        handleConnectionFailure(peerConnection, socketId, participantEmail);
+                        break;
+                }
+            };
+
+            // Enhanced ICE handling
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    // Prioritize candidates with higher bandwidth
+                    const candidateString = event.candidate.candidate.toLowerCase();
+                    if (candidateString.includes('tcp') || 
+                        candidateString.includes('relay') || 
+                        candidateString.includes('ssltcp')) {
+                        event.candidate.priority = 1;
+                    }
+                    socket.emit('ice-candidate', {
+                        candidate: event.candidate,
+                        to: socketId
+                    });
+                }
+            };
+
+            peerConnection.oniceconnectionstatechange = () => {
+                const state = peerConnection.iceConnectionState;
+                console.log(`🧊 ICE connection state with ${participantEmail}:`, state);
+
+                if (state === 'failed' || state === 'disconnected') {
+                    console.log('🔄 ICE connection issues, attempting recovery...');
+                    handleIceFailure(peerConnection, socketId, participantEmail);
+                }
+            };
+
+            peerConnections.set(socketId, peerConnection);
+            return peerConnection;
+        }
+
+        // Enhanced offer handling with m-line ordering
+        socket.on('offer', async ({ offer, from, fromUser }) => {
+            console.log('📤 Received offer from:', fromUser || from);
+
+            try {
+                let peerConnection = peerConnections.get(from);
+                if (!peerConnection) {
+                    peerConnection = createPeerConnection(from, fromUser);
+                }
+
+                // Store the current transceivers order before setting remote description
+                const currentTransceivers = peerConnection.getTransceivers();
+                const currentOrder = currentTransceivers.map(t => t.mid);
+
+                // If we have existing transceivers, ensure they match the incoming offer
+                if (currentTransceivers.length > 0) {
+                    const offerSdp = new RTCSessionDescription(offer);
+                    const sections = SDPUtils.getMediaSections(offerSdp.sdp);
+                    
+                    // Reorder transceivers to match the offer if needed
+                    sections.forEach((section, idx) => {
+                        const mid = SDPUtils.getMid(section);
+                        const transceiver = currentTransceivers.find(t => t.mid === mid);
+                        if (transceiver && transceiver.mid !== currentOrder[idx]) {
+                            // Swap positions to match offer order
+                            const currentIdx = currentOrder.indexOf(transceiver.mid);
+                            [currentOrder[currentIdx], currentOrder[idx]] = [currentOrder[idx], currentOrder[currentIdx]];
+                        }
+                    });
+                }
+
+                console.log('📤 Setting remote description...');
+                await peerConnection.setRemoteDescription(offer);
+
+                console.log('📤 Creating answer...');
+                const answer = await peerConnection.createAnswer();
+
+                // Ensure answer maintains the same m-line order
+                const modifiedAnswer = new RTCSessionDescription({
+                    type: 'answer',
+                    sdp: answer.sdp
+                });
+
+                console.log('📤 Setting local description...');
+                await peerConnection.setLocalDescription(modifiedAnswer);
+
+                console.log('📤 Sending answer to:', fromUser);
+                socket.emit('answer', {
+                    answer: modifiedAnswer,
+                    to: from
+                });
+
+            } catch (error) {
+                console.error('❌ Error handling offer:', error);
+                
+                // Attempt recovery if it's an InvalidAccessError
+                if (error.name === 'InvalidAccessError') {
+                    try {
+                        console.log('🔄 Attempting connection recovery...');
+                        
+                        // Close existing connection
+                        if (peerConnection) {
+                            peerConnection.close();
+                            peerConnections.delete(from);
+                        }
+                        
+                        // Create new connection with fresh state
+                        const newPeerConnection = createPeerConnection(from, fromUser);
+                        
+                        // Set remote description on new connection
+                        await newPeerConnection.setRemoteDescription(offer);
+                        
+                        // Create and send new answer
+                        const newAnswer = await newPeerConnection.createAnswer();
+                        await newPeerConnection.setLocalDescription(newAnswer);
+                        
+                        socket.emit('answer', {
+                            answer: newAnswer,
+                            to: from
+                        });
+                        
+                        console.log('✅ Connection recovery successful');
+                    } catch (recoveryError) {
+                        console.error('❌ Connection recovery failed:', recoveryError);
+                        showNotification('Failed to establish connection after recovery attempt', 'error');
+                    }
+                } else {
+                    showNotification('Failed to establish connection', 'error');
+                }
+            }
+        });
+
+        // Connection recovery functions
+        async function attemptReconnection(peerConnection, socketId, participantEmail) {
+            try {
+                console.log('🔄 Attempting to reconnect with:', participantEmail);
+                await peerConnection.restartIce();
+                
+                // Create and send new offer
+                const offer = await peerConnection.createOffer({ iceRestart: true });
+                await peerConnection.setLocalDescription(offer);
+                
+                socket.emit('offer', {
+                    offer: offer,
+                    to: socketId
+                });
+            } catch (error) {
+                console.error('❌ Reconnection attempt failed:', error);
+            }
+        }
+
+        async function handleConnectionFailure(peerConnection, socketId, participantEmail) {
+            try {
+                console.log('🔄 Handling connection failure for:', participantEmail);
+                
+                // Close existing connection
+                peerConnection.close();
+                peerConnections.delete(socketId);
+                
+                // Create new connection
+                const newPeerConnection = createPeerConnection(socketId, participantEmail);
+                
+                // Create and send new offer
+                const offer = await newPeerConnection.createOffer();
+                await newPeerConnection.setLocalDescription(offer);
+                
+                socket.emit('offer', {
+                    offer: offer,
+                    to: socketId
+                });
+            } catch (error) {
+                console.error('❌ Connection failure recovery failed:', error);
+            }
+        }
+
+        async function handleIceFailure(peerConnection, socketId, participantEmail) {
+            try {
+                console.log('🧊 Handling ICE failure for:', participantEmail);
+                
+                // Try to restart ICE
+                const offer = await peerConnection.createOffer({ iceRestart: true });
+                await peerConnection.setLocalDescription(offer);
+                
+                socket.emit('offer', {
+                    offer: offer,
+                    to: socketId
+                });
+            } catch (error) {
+                console.error('❌ ICE failure recovery failed:', error);
+                handleConnectionFailure(peerConnection, socketId, participantEmail);
+            }
+        }
+
 
         // Add remote participant to the participants list
         function addRemoteParticipant(socketId, stream, userEmail = 'Participant') {
@@ -2778,141 +3145,28 @@ if (peerConnection.iceConnectionState === 'failed') {
             }
         }
 
-        // Camera switching and transformation functions
-        let currentFacingMode = 'user'; // 'user' for front camera, 'environment' for back camera
-        let availableCameras = [];
-
-        // Get available cameras
-        async function getAvailableCameras() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                availableCameras = devices.filter(device => device.kind === 'videoinput');
-                console.log('📹 Available cameras:', availableCameras.length);
-                return availableCameras;
-            } catch (error) {
-                console.error('❌ Error getting cameras:', error);
-                return [];
-            }
-        }
-
-        // Switch between front and back camera
-        async function switchCamera() {
-            try {
-                if (availableCameras.length < 2) {
-                    showNotification('Only one camera available', 'warning');
-                    return;
-                }
-
-                // Toggle facing mode
-                currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-
-                // Stop current video track
-                if (localStream) {
-                    const videoTrack = localStream.getVideoTracks()[0];
-                    if (videoTrack) {
-                        videoTrack.stop();
-                    }
-                }
-
-                // Get new stream with switched camera
-                const newConstraints = {
-                    video: {
-                        facingMode: currentFacingMode,
-                        width: { ideal: 1280, max: 1920, min: 640 },
-                        height: { ideal: 720, max: 1080, min: 480 },
-                        frameRate: { ideal: 30, max: 30, min: 15 }
-                    },
-                    audio: true
-                };
-
-                try {
-                    const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
-
-                    // Replace video track in local stream
-                    const newVideoTrack = newStream.getVideoTracks()[0];
-                    const audioTrack = localStream.getAudioTracks()[0];
-
-                    // Create new stream with new video and existing audio
-                    localStream = new MediaStream();
-                    if (newVideoTrack) localStream.addTrack(newVideoTrack);
-                    if (audioTrack) localStream.addTrack(audioTrack);
-
-                    // Update all peer connections with new video track
-                    for (const [socketId, peerConnection] of peerConnections) {
-                        const sender = peerConnection.getSenders().find(s => 
-                            s.track && s.track.kind === 'video'
-                        );
-                        if (sender && newVideoTrack) {
-                            await sender.replaceTrack(newVideoTrack);
-                        }
-                    }
-
-                    // Update local video elements
-                    updateLocalVideoElements();
-
-                    showNotification(`Switched to ${currentFacingMode === 'user' ? 'front' : 'back'} camera`);
-
-                } catch (streamError) {
-                    console.error('❌ Error switching camera:', streamError);
-                    showNotification('Failed to switch camera', 'error');
-
-                    // Fallback: revert to previous facing mode
-                    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-                }
-
-            } catch (error) {
-                console.error('❌ Error in camera switch:', error);
-                showNotification('Camera switch failed', 'error');
-            }
-        }
-
-        // Update local video elements with new stream
-        function updateLocalVideoElements() {
-            // Update desktop local video
-            const localVideo = document.querySelector('#local-participant video');
-            if (localVideo && localStream) {
-                localVideo.srcObject = localStream;
-                applyCameraTransform(localVideo);
-            }
-
-            // Update mobile local video
-            const mobileLocalVideo = document.querySelector('#mobile-local-participant video');
-            if (mobileLocalVideo && localStream) {
-                mobileLocalVideo.srcObject = localStream;
-                applyCameraTransform(mobileLocalVideo);
-            }
-
-            // Update main video if showing local
-            if (mainVideoSocketId === null) {
-                const mainVideo = mainVideoContainer.querySelector('video');
-                if (mainVideo && localStream) {
-                    mainVideo.srcObject = localStream;
-                    applyCameraTransform(mainVideo);
-                }
-            }
-        }
-
+        // Camera rotation functions
         function applyCameraTransform(videoElement) {
             let transform = '';
-
+            
             if (cameraRotation !== 0) {
                 transform += `rotate(${cameraRotation}deg) `;
             }
-
+            
             if (isFlippedHorizontal) {
                 transform += 'scaleX(-1) ';
             }
-
+            
             if (isFlippedVertical) {
                 transform += 'scaleY(-1) ';
             }
-
+            
             videoElement.style.transform = transform.trim();
         }
 
         function rotateCamera(degrees) {
             cameraRotation = (cameraRotation + degrees) % 360;
-
+            
             // Apply to local video
             const localVideo = document.querySelector('#local-participant video');
             if (localVideo) {
@@ -2924,7 +3178,7 @@ if (peerConnection.iceConnectionState === 'failed') {
             if (mobileLocalVideo) {
                 applyCameraTransform(mobileLocalVideo);
             }
-
+            
             // Apply to main video if showing local
             if (mainVideoSocketId === null) {
                 const mainVideo = mainVideoContainer.querySelector('video');
@@ -2932,11 +3186,9 @@ if (peerConnection.iceConnectionState === 'failed') {
                     applyCameraTransform(mainVideo);
                 }
             }
-
+            
             showNotification(`Camera rotated ${degrees > 0 ? 'right' : 'left'}`);
         }
-
-```text
 
         function flipCamera(direction) {
             if (direction === 'horizontal') {
@@ -2946,7 +3198,7 @@ if (peerConnection.iceConnectionState === 'failed') {
                 isFlippedVertical = !isFlippedVertical;
                 showNotification('Camera flipped vertically');
             }
-
+            
             // Apply to local video
             const localVideo = document.querySelector('#local-participant video');
             if (localVideo) {
@@ -2958,7 +3210,7 @@ if (peerConnection.iceConnectionState === 'failed') {
             if (mobileLocalVideo) {
                 applyCameraTransform(mobileLocalVideo);
             }
-
+            
             // Apply to main video if showing local
             if (mainVideoSocketId === null) {
                 const mainVideo = mainVideoContainer.querySelector('video');
@@ -2973,7 +3225,7 @@ if (peerConnection.iceConnectionState === 'failed') {
             isMobileOverlayOpen = true;
             const overlay = document.getElementById('mobileOverlay');
             overlay.classList.add('show');
-
+            
             // Hide swipe indicator after first use
             hideSwipeIndicatorAfterUse();
         }
@@ -2992,10 +3244,10 @@ if (peerConnection.iceConnectionState === 'failed') {
 
         function handleTouchMove(e) {
             if (!touchStartY) return;
-
+            
             const touchY = e.touches[0].clientY;
             const diffY = touchStartY - touchY;
-
+            
             // Prevent default scrolling behavior for upward swipes
             if (diffY > 0 && touchY > window.innerHeight * 0.7) {
                 e.preventDefault();
@@ -3004,18 +3256,18 @@ if (peerConnection.iceConnectionState === 'failed') {
 
         function handleTouchEnd(e) {
             if (!touchStartY) return;
-
+            
             const touchEndY = e.changedTouches[0].clientY;
             const diffY = touchStartY - touchEndY;
             const diffTime = Date.now() - touchStartTime;
-
+            
             // Swipe up detection (minimum 50px upward, max 300ms duration)
             if (diffY > 50 && diffTime < 300 && touchStartY > window.innerHeight * 0.7) {
                 if (!isMobileOverlayOpen) {
                     showMobileOverlay();
                 }
             }
-
+            
             touchStartY = 0;
             touchStartTime = 0;
         }
@@ -3180,3 +3432,4 @@ if (peerConnection.iceConnectionState === 'failed') {
     </script>
 </body>
 </html>
+
