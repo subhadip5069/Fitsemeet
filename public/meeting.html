@@ -2171,69 +2171,7 @@
             peerConnections.set(socketId, peerConnection);
             return peerConnection;
         }
-// Handle incoming offer
-socket.on('offer', async ({ offer, from, fromUser }) => {
-    let peerConnection = peerConnections.get(from);
-    if (!peerConnection) {
-        peerConnection = createPeerConnection(from, fromUser);
-    }
 
-    try {
-        // Always set remote description first
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
-        // Only create and set answer if in correct state
-        if (peerConnection.signalingState === 'have-remote-offer') {
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            socket.emit('answer', {
-                answer: answer,
-                to: from
-            });
-        } else {
-            console.warn('Not setting local answer: invalid signalingState', peerConnection.signalingState);
-        }
-    } catch (error) {
-        console.error('❌ Error handling offer:', error, 'State was:', peerConnection.signalingState);
-        showNotification('Failed to establish connection', 'error');
-    }
-});
-
-// Handle incoming answer
-socket.on('answer', async ({ answer, from, fromUser }) => {
-    const peerConnection = peerConnections.get(from);
-    if (peerConnection) {
-        try {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            console.log('✅ Answer processed successfully');
-        } catch (error) {
-            console.error('❌ Error handling answer:', error);
-        }
-    } else {
-        console.error('❌ No peer connection found for:', from);
-    }
-});
-
-// Creating and sending an offer (e.g., when a user joins or reconnects)
-async function sendOffer(peerConnection, targetSocketId, targetUserEmail) {
-    try {
-        if (peerConnection.signalingState === 'stable') {
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-
-            socket.emit('offer', {
-                offer: offer,
-                to: targetSocketId
-            });
-        } else {
-            console.warn('Not creating offer: signalingState is not stable', peerConnection.signalingState);
-        }
-    } catch (error) {
-        console.error('❌ Error creating/sending offer:', error);
-    }
-}
-        // Enhanced offer handling with m-line ordering
         socket.on('offer', async ({ offer, from, fromUser }) => {
             console.log('📤 Received offer from:', fromUser || from);
 
@@ -2694,51 +2632,68 @@ async function sendOffer(peerConnection, targetSocketId, targetUserEmail) {
             }, 1000);
         });
 
-        socket.on('offer', async ({ offer, from, fromUser }) => {
-            console.log('📤 Received offer from:', fromUser || from);
+      // Handle incoming offer
+socket.on('offer', async ({ offer, from, fromUser }) => {
+    let peerConnection = peerConnections.get(from);
+    if (!peerConnection) {
+        peerConnection = createPeerConnection(from, fromUser);
+    }
 
-            try {
-                let peerConnection = peerConnections.get(from);
-                if (!peerConnection) {
-                    peerConnection = createPeerConnection(from, fromUser);
-                }
+    try {
+        // Always set remote description first
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
-                console.log('📤 Setting remote description...');
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        // Only create and set answer if in correct state
+        if (peerConnection.signalingState === 'have-remote-offer') {
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
 
-                console.log('📤 Creating answer...');
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
+            socket.emit('answer', {
+                answer: answer,
+                to: from
+            });
+        } else {
+            console.warn('Not setting local answer: invalid signalingState', peerConnection.signalingState);
+        }
+    } catch (error) {
+        console.error('❌ Error handling offer:', error, 'State was:', peerConnection.signalingState);
+        showNotification('Failed to establish connection', 'error');
+    }
+});
 
-                console.log('📤 Sending answer to:', fromUser);
-                socket.emit('answer', {
-                    answer: answer,
-                    to: from
-                });
+// Handle incoming answer
+socket.on('answer', async ({ answer, from, fromUser }) => {
+    const peerConnection = peerConnections.get(from);
+    if (peerConnection) {
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log('✅ Answer processed successfully');
+        } catch (error) {
+            console.error('❌ Error handling answer:', error);
+        }
+    } else {
+        console.error('❌ No peer connection found for:', from);
+    }
+});
 
-            } catch (error) {
-                console.error('❌ Error handling offer:', error);
-                showNotification('Failed to establish connection', 'error');
-            }
-        });
+// Creating and sending an offer (e.g., when a user joins or reconnects)
+async function sendOffer(peerConnection, targetSocketId, targetUserEmail) {
+    try {
+        if (peerConnection.signalingState === 'stable') {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
 
-        socket.on('answer', async ({ answer, from, fromUser }) => {
-            console.log('📥 Received answer from:', fromUser || from);
-
-            try {
-                const peerConnection = peerConnections.get(from);
-                if (peerConnection) {
-                    console.log('📥 Setting remote description from answer...');
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-                    console.log('✅ Answer processed successfully');
-                } else {
-                    console.error('❌ No peer connection found for:', from);
-                }
-            } catch (error) {
-                console.error('❌ Error handling answer:', error);
-            }
-        });
-
+            socket.emit('offer', {
+                offer: offer,
+                to: targetSocketId
+            });
+        } else {
+            console.warn('Not creating offer: signalingState is not stable', peerConnection.signalingState);
+        }
+    } catch (error) {
+        console.error('❌ Error creating/sending offer:', error);
+    }
+}
         socket.on('ice-candidate', async ({ candidate, from, fromUser }) => {
             console.log('🧊 Received ICE candidate from:', fromUser || from);
 
