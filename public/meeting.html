@@ -2,6 +2,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
+
+
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FITSTE - Meeting</title>
@@ -2172,96 +2176,78 @@
             return peerConnection;
         }
 
-        socket.on('offer', async ({ offer, from, fromUser }) => {
-            console.log('📤 Received offer from:', fromUser || from);
+       socket.on('offer', async ({ offer, from, fromUser }) => {
+    console.log('📤 Received offer from:', fromUser || from);
 
+    let peerConnection = peerConnections.get(from);
+
+    try {
+        // Create a new PeerConnection if one doesn't exist
+        if (!peerConnection) {
+            peerConnection = createPeerConnection(from, fromUser);
+            peerConnections.set(from, peerConnection);
+        }
+
+        // Avoid duplicate negotiation
+        if (peerConnection.signalingState !== 'stable') {
+            console.warn('⚠️ Signaling state not stable. Skipping renegotiation.');
+            return;
+        }
+
+        // Attempt to set remote description
+        console.log('📤 Setting remote description...');
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+        console.log('📤 Creating answer...');
+        const answer = await peerConnection.createAnswer();
+
+        console.log('📤 Setting local description...');
+        await peerConnection.setLocalDescription(answer);
+
+        console.log('📤 Sending answer to:', fromUser);
+        socket.emit('answer', {
+            answer: peerConnection.localDescription,
+            to: from
+        });
+
+    } catch (error) {
+        console.error('❌ Error during offer handling:', error);
+
+        // Attempt recovery for common WebRTC issues
+        if (error.name === 'InvalidAccessError' || error.name === 'InvalidStateError') {
             try {
-                let peerConnection = peerConnections.get(from);
-                if (!peerConnection) {
-                    peerConnection = createPeerConnection(from, fromUser);
+                console.log('🔄 Attempting connection recovery...');
+
+                // Cleanup old connection
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnections.delete(from);
                 }
 
-                // Store the current transceivers order before setting remote description
-                const currentTransceivers = peerConnection.getTransceivers();
-                const currentOrder = currentTransceivers.map(t => t.mid);
+                // Recreate and retry
+                const newPeerConnection = createPeerConnection(from, fromUser);
+                peerConnections.set(from, newPeerConnection);
 
-                // If we have existing transceivers, ensure they match the incoming offer
-                if (currentTransceivers.length > 0) {
-                    const offerSdp = new RTCSessionDescription(offer);
-                    const sections = SDPUtils.getMediaSections(offerSdp.sdp);
-                    
-                    // Reorder transceivers to match the offer if needed
-                    sections.forEach((section, idx) => {
-                        const mid = SDPUtils.getMid(section);
-                        const transceiver = currentTransceivers.find(t => t.mid === mid);
-                        if (transceiver && transceiver.mid !== currentOrder[idx]) {
-                            // Swap positions to match offer order
-                            const currentIdx = currentOrder.indexOf(transceiver.mid);
-                            [currentOrder[currentIdx], currentOrder[idx]] = [currentOrder[idx], currentOrder[currentIdx]];
-                        }
-                    });
-                }
+                await newPeerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                const newAnswer = await newPeerConnection.createAnswer();
+                await newPeerConnection.setLocalDescription(newAnswer);
 
-                console.log('📤 Setting remote description...');
-                await peerConnection.setRemoteDescription(offer);
-
-                console.log('📤 Creating answer...');
-                const answer = await peerConnection.createAnswer();
-
-                // Ensure answer maintains the same m-line order
-                const modifiedAnswer = new RTCSessionDescription({
-                    type: 'answer',
-                    sdp: answer.sdp
-                });
-
-                console.log('📤 Setting local description...');
-                await peerConnection.setLocalDescription(modifiedAnswer);
-
-                console.log('📤 Sending answer to:', fromUser);
                 socket.emit('answer', {
-                    answer: modifiedAnswer,
+                    answer: newAnswer,
                     to: from
                 });
 
-            } catch (error) {
-                console.error('❌ Error handling offer:', error);
-                
-                // Attempt recovery if it's an InvalidAccessError
-                if (error.name === 'InvalidAccessError') {
-                    try {
-                        console.log('🔄 Attempting connection recovery...');
-                        
-                        // Close existing connection
-                        if (peerConnection) {
-                            peerConnection.close();
-                            peerConnections.delete(from);
-                        }
-                        
-                        // Create new connection with fresh state
-                        const newPeerConnection = createPeerConnection(from, fromUser);
-                        
-                        // Set remote description on new connection
-                        await newPeerConnection.setRemoteDescription(offer);
-                        
-                        // Create and send new answer
-                        const newAnswer = await newPeerConnection.createAnswer();
-                        await newPeerConnection.setLocalDescription(newAnswer);
-                        
-                        socket.emit('answer', {
-                            answer: newAnswer,
-                            to: from
-                        });
-                        
-                        console.log('✅ Connection recovery successful');
-                    } catch (recoveryError) {
-                        console.error('❌ Connection recovery failed:', recoveryError);
-                        showNotification('Failed to establish connection after recovery attempt', 'error');
-                    }
-                } else {
-                    showNotification('Failed to establish connection', 'error');
-                }
+                console.log('✅ Recovery successful');
+
+            } catch (recoveryError) {
+                console.error('❌ Recovery failed:', recoveryError);
+                showNotification('Failed to re-establish connection after recovery', 'error');
             }
-        });
+        } else {
+            showNotification('Failed to establish connection', 'error');
+        }
+    }
+});
 
         // Connection recovery functions
         async function attemptReconnection(peerConnection, socketId, participantEmail) {
@@ -2306,55 +2292,55 @@
             }
         }
 
-        async function handleIceFailure(peerConnection, socketId, participantEmail) {
-            try {
-                console.log('🧊 Handling ICE failure for:', participantEmail);
+        // async function handleIceFailure(peerConnection, socketId, participantEmail) {
+        //     try {
+        //         console.log('🧊 Handling ICE failure for:', participantEmail);
                 
-                // Try to restart ICE
-                const offer = await peerConnection.createOffer({ iceRestart: true });
-                await peerConnection.setLocalDescription(offer);
+        //         // Try to restart ICE
+        //         const offer = await peerConnection.createOffer({ iceRestart: true });
+        //         await peerConnection.setLocalDescription(offer);
                 
-                socket.emit('offer', {
-                    offer: offer,
-                    to: socketId
-                });
-            } catch (error) {
-                console.error('❌ ICE failure recovery failed:', error);
-                handleConnectionFailure(peerConnection, socketId, participantEmail);
-            }
-        }
+        //         socket.emit('offer', {
+        //             offer: offer,
+        //             to: socketId
+        //         });
+        //     } catch (error) {
+        //         console.error('❌ ICE failure recovery failed:', error);
+        //         handleConnectionFailure(peerConnection, socketId, participantEmail);
+        //     }
+        // }
 
 
         // Add remote participant to the participants list
-        function addRemoteParticipant(socketId, stream, userEmail = 'Participant') {
-            console.log('👤 Adding remote participant:', userEmail, 'with stream:', stream);
+        // function addRemoteParticipant(socketId, stream, userEmail = 'Participant') {
+        //     console.log('👤 Adding remote participant:', userEmail, 'with stream:', stream);
 
-            if (remoteParticipants.has(socketId)) {
-                console.log('👤 Participant already exists, updating stream');
-                const existingParticipant = remoteParticipants.get(socketId);
-                existingParticipant.stream = stream;
+        //     if (remoteParticipants.has(socketId)) {
+        //         console.log('👤 Participant already exists, updating stream');
+        //         const existingParticipant = remoteParticipants.get(socketId);
+        //         existingParticipant.stream = stream;
 
-                // Update desktop video
-                const existingElement = document.getElementById(`participant-${socketId}`);
-                if (existingElement) {
-                    const video = existingElement.querySelector('video');
-                    if (video) {
-                        video.srcObject = stream;
-                        console.log('📹 Updated existing desktop video element');
-                    }
-                }
+        //         // Update desktop video
+        //         const existingElement = document.getElementById(`participant-${socketId}`);
+        //         if (existingElement) {
+        //             const video = existingElement.querySelector('video');
+        //             if (video) {
+        //                 video.srcObject = stream;
+        //                 console.log('📹 Updated existing desktop video element');
+        //             }
+        //         }
 
-                // Update mobile video
-                const existingMobileElement = document.getElementById(`mobile-participant-${socketId}`);
-                if (existingMobileElement) {
-                    const mobileVideo = existingMobileElement.querySelector('video');
-                    if (mobileVideo) {
-                        mobileVideo.srcObject = stream;
-                        console.log('📹 Updated existing mobile video element');
-                    }
-                }
-                return;
-            }
+        //         // Update mobile video
+        //         const existingMobileElement = document.getElementById(`mobile-participant-${socketId}`);
+        //         if (existingMobileElement) {
+        //             const mobileVideo = existingMobileElement.querySelector('video');
+        //             if (mobileVideo) {
+        //                 mobileVideo.srcObject = stream;
+        //                 console.log('📹 Updated existing mobile video element');
+        //             }
+        //         }
+        //         return;
+        //     }
 
             remoteParticipants.set(socketId, {
                 stream: stream,
