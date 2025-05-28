@@ -1642,8 +1642,8 @@
             forceNew: true,
             reconnection: true,
             reconnectionDelay: 1000,
-            reconnectionAttempts: 5,
-            maxReconnectionAttempts: 5
+            reconnectionAttempts: 15,
+            maxReconnectionAttempts: 10
         });
 
         // DOM elements
@@ -1663,8 +1663,10 @@
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-            ],
+                { urls: 'stun:stun2.l.google.com:19302' },
+                {urls: 'stun:stun2.l.google.com:19302}       
+
+    ],
             iceCandidatePoolSize: 5,
             bundlePolicy: 'max-bundle',
             rtcpMuxPolicy: 'require',
